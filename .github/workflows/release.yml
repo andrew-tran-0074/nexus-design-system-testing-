@@ -1,6 +1,8 @@
-# Publishes to npm when changesets are merged to main.
-# Requires an NPM_TOKEN secret (npm access token with publish rights) to be
-# added under Settings > Secrets before this can actually publish anything.
+# Version-and-tag flow with no npm publishing (consumers install via git dependency).
+# When changesets are pending, opens/updates a "Version Packages" PR that bumps
+# package.json and CHANGELOG.md. When that PR is merged, tags the new version
+# (e.g. v1.0.0) so consumers can pin to it, e.g.:
+#   "nexus-design-system": "github:andrew-tran-0074/nexus-design-system-testing-#v1.0.0"
 name: Release
 
 on:
@@ -10,7 +12,7 @@ on:
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
 jobs:
-  release:
+  version-and-tag:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -23,12 +25,19 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          registry-url: https://registry.npmjs.org
       - run: npm ci
-      - name: Create release PR or publish
+      - name: Create or update Version Packages PR
         uses: changesets/action@v1
         with:
-          publish: npm run release
+          version: npx changeset version
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Tag release if version changed
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if git rev-parse "v$VERSION" >/dev/null 2>&1; then
+            echo "Tag v$VERSION already exists, skipping."
+          else
+            git tag "v$VERSION"
+            git push origin "v$VERSION"
+          fi
