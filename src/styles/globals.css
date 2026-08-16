@@ -1,0 +1,12 @@
+@import "./tokens.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  font-family: theme("fontFamily.sans");
+  color: var(--text-1);
+  background-color: var(--surface-1);
+}
